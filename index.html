@@ -2,718 +2,494 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>电影播放器</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>响应式视频播放器</title>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <style>
-        /* 保持原有样式 */
+        /* 基础样式 */
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-
+        
         body {
-            font-family: 'Microsoft YaHei', Arial, sans-serif;
-            background-color: #121212;
-            color: #ffffff;
-            line-height: 1.6;
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background-color: #1a1a1a;
+            color: #fff;
+            min-height: 100vh;
         }
-
+        
         .container {
             max-width: 1200px;
             margin: 0 auto;
             padding: 20px;
         }
-
+        
         header {
             text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            color: #fff;
             margin-bottom: 20px;
         }
-
-        h1 {
-            color: #ffffff;
-            font-size: 1.8rem;
-            margin-bottom: 10px;
-        }
-
+        
         /* 视频播放区域 */
-        .player-container {
-            position: relative;
-            width: 100%;
-            max-width: 800px;
-            margin: 0 auto 30px;
+        .video-container {
             background-color: #000;
-            border-radius: 8px;
+            border-radius: 10px;
             overflow: hidden;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+            margin-bottom: 30px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            aspect-ratio: 16/9;
+            position: relative;
         }
-
-        /* 手机端播放器比例优化 */
-        @media (max-width: 768px) {
-            .player-container {
-                width: 100%;
-                height: auto;
-                aspect-ratio: 9/16; /* 竖屏视频比例 */
-            }
-            
-            @media (orientation: landscape) {
-                .player-container {
-                    aspect-ratio: 16/9;
-                    max-height: 80vh;
-                }
-            }
-        }
-
-        video {
+        
+        #videoPlayer {
             width: 100%;
             height: 100%;
-            object-fit: contain;
             background-color: #000;
         }
-
-        /* 加载状态 */
-        .loading {
+        
+        /* 加载和错误提示 */
+        .loading-screen,
+        .error-screen {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0, 0, 0, 0.8);
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
+            background-color: rgba(0, 0, 0, 0.8);
             z-index: 10;
         }
-
+        
+        .error-screen {
+            background-color: rgba(255, 40, 40, 0.3);
+        }
+        
         .loading-spinner {
             border: 4px solid rgba(255, 255, 255, 0.3);
             border-radius: 50%;
-            border-top: 4px solid #ffffff;
+            border-top: 4px solid #fff;
             width: 40px;
             height: 40px;
             animation: spin 1s linear infinite;
-            margin-bottom: 10px;
+            margin-bottom: 20px;
         }
-
+        
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
-
-        /* 错误信息 */
-        .error-message {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.8);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            z-index: 10;
-            padding: 20px;
-            text-align: center;
-        }
-
-        /* 分类目录 */
-        .category-section {
-            margin-bottom: 20px;
-        }
-
+        
+        /* 分类标签栏 */
         .category-tabs {
             display: flex;
-            flex-wrap: nowrap;
-            overflow-x: auto;
+            flex-wrap: wrap;
             gap: 10px;
-            padding: 10px 0;
-            scrollbar-width: none;
-            -ms-overflow-style: none;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #333;
         }
-
-        .category-tabs::-webkit-scrollbar {
-            display: none;
-        }
-
+        
         .category-tab {
             padding: 8px 16px;
-            background-color: #333;
-            border: none;
             border-radius: 20px;
-            color: white;
+            background-color: #333;
+            color: #fff;
             cursor: pointer;
-            white-space: nowrap;
-            transition: background-color 0.3s ease;
+            transition: all 0.3s ease;
+            border: none;
             font-size: 14px;
-            flex-shrink: 0;
         }
-
+        
+        .category-tab:hover,
         .category-tab.active {
-            background-color: #555;
-            font-weight: bold;
+            background-color: #007bff;
+            transform: translateY(-2px);
         }
-
+        
         /* 视频列表 */
         .video-list {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 15px;
-            margin-top: 20px;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
         }
-
-        @media (max-width: 768px) {
-            .video-list {
-                grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-                gap: 10px;
-            }
-        }
-
+        
         .video-item {
-            background-color: #1e1e1e;
+            background-color: #2a2a2a;
             border-radius: 8px;
             overflow: hidden;
             cursor: pointer;
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-            display: flex;
-            flex-direction: column;
+            transition: all 0.3s ease;
         }
-
+        
         .video-item:hover {
             transform: translateY(-5px);
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
         }
-
+        
         .video-thumbnail {
-            width: 100%;
-            aspect-ratio: 3/4;
-            background-color: #333;
+            height: 160px;
+            background-color: #000;
             position: relative;
-            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
-
+        
+        .play-icon {
+            width: 60px;
+            height: 60px;
+            background-color: rgba(0, 0, 0, 0.6);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        .video-item:hover .play-icon {
+            opacity: 1;
+        }
+        
+        .play-icon::after {
+            content: '';
+            width: 0;
+            height: 0;
+            border-style: solid;
+            border-width: 15px 0 15px 25px;
+            border-color: transparent transparent transparent #fff;
+            margin-left: 5px;
+        }
+        
         .video-info {
-            padding: 10px;
-            flex-grow: 1;
+            padding: 15px;
         }
-
+        
         .video-title {
-            font-size: 14px;
-            margin-bottom: 5px;
-            white-space: nowrap;
+            font-size: 16px;
+            font-weight: 500;
+            margin-bottom: 8px;
             overflow: hidden;
             text-overflow: ellipsis;
+            white-space: nowrap;
         }
-
+        
         .video-category {
             font-size: 12px;
-            opacity: 0.8;
+            color: #888;
             display: inline-block;
-            padding: 2px 6px;
-            border-radius: 4px;
-            margin-top: 5px;
+            padding: 3px 8px;
+            border-radius: 3px;
+            background-color: #333;
         }
-
-        .hidden {
-            display: none;
-        }
-
-        .footer {
-            text-align: center;
-            margin-top: 40px;
-            padding: 20px;
-            font-size: 12px;
-            color: #666;
-        }
-
-        /* 新增：格式修复工具样式 */
-        .fix-tool {
-            background-color: #1e1e1e;
+        
+        /* 错误修复提示 */
+        .fix-tip {
+            background-color: #333;
             padding: 20px;
             border-radius: 8px;
             margin-bottom: 20px;
+            border-left: 4px solid #ff6b6b;
         }
-
-        .fix-tool h3 {
-            margin-bottom: 15px;
-            color: #fff;
-        }
-
-        .fix-tool textarea {
-            width: 100%;
-            min-height: 150px;
-            padding: 10px;
-            background-color: #2d2d2d;
-            border: 1px solid #444;
-            border-radius: 4px;
-            color: #fff;
-            font-family: 'Courier New', monospace;
-            margin-bottom: 10px;
-        }
-
-        .fix-tool button {
-            padding: 8px 16px;
-            background-color: #3498db;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            margin-right: 10px;
-            margin-bottom: 10px;
-        }
-
-        .fix-tool button:hover {
-            background-color: #2980b9;
-        }
-
-        .fix-result {
-            margin-top: 15px;
-            padding: 15px;
-            background-color: #2d2d2d;
-            border-radius: 4px;
-            font-family: 'Courier New', monospace;
-            font-size: 14px;
-            max-height: 200px;
-            overflow-y: auto;
+        
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            h1 {
+                font-size: 1.8rem;
+            }
+            
+            .video-list {
+                grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+                gap: 10px;
+            }
+            
+            .video-thumbnail {
+                height: 100px;
+            }
+            
+            .video-info {
+                padding: 10px;
+            }
+            
+            .video-title {
+                font-size: 14px;
+            }
         }
     </style>
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 </head>
 <body>
     <div class="container">
         <header>
             <h1>电影播放器</h1>
         </header>
-
-        <!-- 视频播放区域 -->
-        <div class="player-container">
-            <video id="videoPlayer" controls></video>
-            <div id="loadingIndicator" class="loading">
-                <div class="loading-spinner"></div>
-                <p>加载中...</p>
-            </div>
-            <div id="errorContainer" class="error-message hidden">
-                <p id="errorText">加载失败，请稍后重试</p>
-                <button id="retryButton">重试</button>
-            </div>
-        </div>
-
-        <!-- 格式修复工具 -->
-        <div class="fix-tool">
-            <h3>电影格式修复工具</h3>
-            <p style="margin-bottom: 10px; font-size: 14px; opacity: 0.8;">如果遇到格式错误，可以在这里修复movies.js文件</p>
-            <textarea id="fixInput" placeholder="粘贴您的movies.js内容到这里..."></textarea>
-            <div>
-                <button id="fixFormatButton">修复格式</button>
-                <button id="generateExampleButton">生成示例</button>
-            </div>
-            <div class="fix-result" id="fixResult">修复后的内容将显示在这里</div>
-        </div>
-
-        <!-- 分类目录区域 -->
-        <div class="category-section">
-            <div class="category-tabs" id="categoryTabs">
-                <!-- 分类标签将通过JavaScript动态生成 -->
-            </div>
-        </div>
-
-        <!-- 视频列表 -->
-        <div class="video-list" id="videoList">
-            <!-- 视频项将通过JavaScript动态生成 -->
-        </div>
-
-        <footer class="footer">
-            <p>请点击视频开始播放</p>
-        </footer>
-    </div>
-
-    <script>
-        // 获取DOM元素
-        const videoPlayer = document.getElementById('videoPlayer');
-        const loadingIndicator = document.getElementById('loadingIndicator');
-        const errorContainer = document.getElementById('errorContainer');
-        const errorText = document.getElementById('errorText');
-        const retryButton = document.getElementById('retryButton');
-        const videoList = document.getElementById('videoList');
-        const categoryTabs = document.getElementById('categoryTabs');
-        const fixInput = document.getElementById('fixInput');
-        const fixButton = document.getElementById('fixFormatButton');
-        const generateButton = document.getElementById('generateExampleButton');
-        const fixResult = document.getElementById('fixResult');
         
-        let currentCategory = '全部';
+        <!-- 错误修复提示 -->
+        <div class="fix-tip">
+            <h3>如果播放器无法正常工作，请尝试以下方法：</h3>
+            <ol>
+                <li>确保movies.js文件格式正确</li>
+                <li>使用下方的格式修复工具重新转换TXT文件</li>
+                <li>检查视频链接是否有效</li>
+            </ol>
+        </div>
+        
+        <!-- 视频播放区域 -->
+        <div class="video-container">
+            <video id="videoPlayer" controls></video>
+            <div id="loadingScreen" class="loading-screen">
+                <div class="loading-spinner"></div>
+                <p>视频加载中...</p>
+            </div>
+            <div id="errorScreen" class="error-screen" style="display: none;">
+                <p id="errorMessage">视频加载失败，请尝试其他视频</p>
+            </div>
+        </div>
+        
+        <!-- 分类标签栏 -->
+        <div class="category-tabs" id="categoryTabs">
+            <button class="category-tab active" data-category="all">全部</button>
+        </div>
+        
+        <!-- 视频列表 -->
+        <div class="video-list" id="videoList"></div>
+    </div>
+    
+    <script>
+        // 全局变量
+        let currentCategory = 'all';
+        let movieData = [];
         let hls = null;
-        let movieData = []; // 存储电影数据
-
-        // 初始化
-        document.addEventListener('DOMContentLoaded', () => {
-            // 尝试加载movies.js
-            loadMovies();
-            
-            // 绑定格式修复工具事件
-            fixButton.addEventListener('click', fixMoviesFormat);
-            generateButton.addEventListener('click', generateExampleMovies);
-            
-            // 重试按钮事件
-            retryButton.addEventListener('click', () => {
-                loadMovies();
-            });
-        });
-
-        // 加载视频数据 - 增强版，添加错误处理
-        async function loadMovies() {
-            showLoading();
-            hideError();
-            
+        
+        // DOM元素
+        const videoPlayer = document.getElementById('videoPlayer');
+        const loadingScreen = document.getElementById('loadingScreen');
+        const errorScreen = document.getElementById('errorScreen');
+        const errorMessage = document.getElementById('errorMessage');
+        const categoryTabs = document.getElementById('categoryTabs');
+        const videoList = document.getElementById('videoList');
+        
+        // 尝试多种方式加载movies.js
+        function loadMovieData() {
             try {
-                // 尝试直接从window获取movieData
-                if (window.movieData && Array.isArray(window.movieData)) {
+                // 方式1: 直接引用全局变量
+                if (window.movieData) {
                     movieData = window.movieData;
-                    processMovieData();
+                    initApp();
                     return;
                 }
-
-                // 尝试动态加载movies.js
-                try {
-                    const script = document.createElement('script');
-                    script.src = 'movies.js';
-                    script.onload = () => {
-                        try {
-                            if (window.movieData && Array.isArray(window.movieData)) {
-                                movieData = window.movieData;
-                                processMovieData();
-                            } else {
-                                throw new Error('movies.js中未找到有效的movieData数组');
-                            }
-                        } catch (e) {
-                            hideLoading();
-                            showError(`加载失败: ${e.message}\n请检查movies.js文件格式`);
-                        }
-                    };
-                    script.onerror = () => {
-                        hideLoading();
-                        showError('无法加载movies.js文件\n请确保文件存在且格式正确');
-                    };
-                    document.body.appendChild(script);
-                } catch (e) {
-                    // 尝试使用fetch加载并解析
-                    try {
-                        const response = await fetch('movies.js');
-                        const scriptContent = await response.text();
-                        
-                        // 提取movieData
-                        const dataMatch = scriptContent.match(/const\s+movieData\s*=\s*(\[.+?\]);/s);
-                        if (dataMatch && dataMatch[1]) {
-                            try {
-                                movieData = JSON.parse(dataMatch[1]);
-                                if (Array.isArray(movieData)) {
-                                    window.movieData = movieData;
-                                    processMovieData();
-                                } else {
-                                    throw new Error('movieData不是有效数组');
-                                }
-                            } catch (parseError) {
-                                hideLoading();
-                                showError('JSON解析错误: ' + parseError.message);
-                                // 显示格式修复工具中的原始内容
-                                fixInput.value = scriptContent;
-                            }
-                        } else {
-                            throw new Error('无法从movies.js中提取movieData');
-                        }
-                    } catch (fetchError) {
-                        hideLoading();
-                        showError(`加载失败: ${fetchError.message}\n请确保movies.js文件存在`);
+                
+                // 方式2: 动态导入
+                const script = document.createElement('script');
+                script.src = 'movies.js';
+                script.onload = function() {
+                    if (window.movieData) {
+                        movieData = window.movieData;
+                        initApp();
+                    } else {
+                        showError('movies.js 加载失败，未找到movieData变量');
                     }
-                }
+                };
+                script.onerror = function() {
+                    showError('movies.js 文件加载失败，请检查文件是否存在');
+                };
+                document.head.appendChild(script);
             } catch (error) {
-                console.error('加载电影数据失败:', error);
-                hideLoading();
-                showError('加载电影列表失败: ' + error.message);
+                showError('加载电影数据时发生错误: ' + error.message);
             }
         }
-
-        // 处理电影数据
-        function processMovieData() {
-            // 验证和清理数据
-            movieData = validateAndCleanMovieData(movieData);
-            
-            if (movieData.length === 0) {
-                hideLoading();
-                showError('未找到有效的电影数据');
+        
+        // 初始化应用
+        function initApp() {
+            if (!movieData || movieData.length === 0) {
+                showError('没有找到电影数据，请检查movies.js文件格式');
                 return;
             }
             
-            // 生成分类标签和视频列表
+            // 隐藏加载屏幕
+            loadingScreen.style.display = 'none';
+            
+            // 生成分类标签
             generateCategoryTabs();
+            
+            // 生成视频列表
             generateVideoList();
-            
-            // 默认播放第一个视频
-            playVideo(movieData[0].m3u8);
         }
-
-        // 验证和清理电影数据
-        function validateAndCleanMovieData(data) {
-            if (!Array.isArray(data)) return [];
-            
-            return data.filter(item => {
-                // 基本验证
-                if (!item || typeof item !== 'object') return false;
-                
-                // 确保必需字段存在
-                item.name = item.name || '未知电影';
-                item.category = item.category || '其他';
-                item.m3u8 = item.m3u8 || '';
-                
-                return !!item.m3u8; // 必须有m3u8链接
-            });
-        }
-
+        
         // 生成分类标签
         function generateCategoryTabs() {
-            const categories = new Set(['全部']);
+            // 获取所有分类
+            const categories = new Set();
             movieData.forEach(movie => {
-                categories.add(movie.category);
+                if (movie.category) {
+                    categories.add(movie.category);
+                }
             });
-
-            categoryTabs.innerHTML = '';
-
+            
+            // 添加分类标签
             categories.forEach(category => {
                 const tab = document.createElement('button');
-                tab.className = `category-tab ${category === currentCategory ? 'active' : ''}`;
+                tab.className = 'category-tab';
                 tab.textContent = category;
-                tab.addEventListener('click', () => {
-                    currentCategory = category;
+                tab.setAttribute('data-category', category);
+                
+                tab.addEventListener('click', function() {
+                    // 更新活跃标签
                     document.querySelectorAll('.category-tab').forEach(t => {
                         t.classList.remove('active');
                     });
-                    tab.classList.add('active');
+                    this.classList.add('active');
+                    
+                    // 更新当前分类并重新生成列表
+                    currentCategory = this.getAttribute('data-category');
                     generateVideoList();
                 });
+                
                 categoryTabs.appendChild(tab);
             });
         }
-
+        
         // 生成视频列表
         function generateVideoList() {
             videoList.innerHTML = '';
-
-            const filteredMovies = currentCategory === '全部' 
+            
+            // 过滤视频
+            const filteredMovies = currentCategory === 'all' 
                 ? movieData 
                 : movieData.filter(movie => movie.category === currentCategory);
-
+            
+            if (filteredMovies.length === 0) {
+                const emptyState = document.createElement('div');
+                emptyState.textContent = '没有找到视频';
+                emptyState.style.gridColumn = '1 / -1';
+                emptyState.style.textAlign = 'center';
+                emptyState.style.padding = '40px';
+                videoList.appendChild(emptyState);
+                return;
+            }
+            
+            // 创建视频项
             filteredMovies.forEach(movie => {
                 const videoItem = document.createElement('div');
                 videoItem.className = 'video-item';
                 
-                const thumbnail = document.createElement('div');
-                thumbnail.className = 'video-thumbnail';
-                
-                const info = document.createElement('div');
-                info.className = 'video-info';
-                
-                const title = document.createElement('div');
-                title.className = 'video-title';
-                title.textContent = movie.name;
-                
-                const category = document.createElement('div');
-                category.className = 'video-category';
-                category.textContent = movie.category;
-                
-                setCategoryColor(category, movie.category);
-                
-                info.appendChild(title);
-                info.appendChild(category);
-                videoItem.appendChild(thumbnail);
-                videoItem.appendChild(info);
+                videoItem.innerHTML = `
+                    <div class="video-thumbnail">
+                        <div class="play-icon"></div>
+                    </div>
+                    <div class="video-info">
+                        <div class="video-title">${movie.name}</div>
+                        <div class="video-category">${movie.category}</div>
+                    </div>
+                `;
                 
                 videoItem.addEventListener('click', () => {
-                    playVideo(movie.m3u8);
-                    document.querySelector('.player-container').scrollIntoView({ behavior: 'smooth' });
+                    playVideo(movie.url);
                 });
                 
                 videoList.appendChild(videoItem);
             });
         }
-
-        // 设置分类颜色
-        function setCategoryColor(element, category) {
-            const categoryColors = {
-                '动作': '#ff4444',
-                '喜剧': '#44ff44',
-                '科幻': '#4444ff',
-                '恐怖': '#aa0000',
-                '爱情': '#ff44aa',
-                '动画': '#44aaaa',
-                '纪录片': '#aaaaaa',
-                '其他': '#888888'
-            };
-            
-            element.style.backgroundColor = categoryColors[category] || '#666666';
-        }
-
+        
         // 播放视频
         function playVideo(url) {
-            showLoading();
-            hideError();
-            
+            // 重置播放器
             if (hls) {
                 hls.destroy();
                 hls = null;
             }
             
-            if (Hls.isSupported()) {
-                hls = new Hls();
-                
-                hls.on(Hls.Events.MANIFEST_PARSED, () => {
-                    hideLoading();
-                    videoPlayer.play().catch(err => {
-                        console.error('播放失败:', err);
-                    });
-                });
-                
-                hls.on(Hls.Events.ERROR, (event, data) => {
-                    if (data.fatal) {
-                        hideLoading();
-                        showError('视频加载失败');
-                    }
-                });
-                
-                hls.loadSource(url);
-                hls.attachMedia(videoPlayer);
-            } else if (videoPlayer.canPlayType('application/vnd.apple.mpegurl')) {
-                videoPlayer.src = url;
-                videoPlayer.addEventListener('loadedmetadata', () => {
-                    hideLoading();
-                    videoPlayer.play().catch(err => {
-                        console.error('播放失败:', err);
-                    });
-                });
-                videoPlayer.addEventListener('error', () => {
-                    hideLoading();
-                    showError('视频加载失败');
-                });
-            } else {
-                hideLoading();
-                showError('您的浏览器不支持HLS格式视频');
-            }
-        }
-
-        // 格式修复功能
-        function fixMoviesFormat() {
-            const input = fixInput.value.trim();
-            if (!input) {
-                fixResult.textContent = '请先粘贴movies.js内容';
-                return;
-            }
+            videoPlayer.pause();
+            videoPlayer.src = '';
+            
+            // 显示加载屏幕
+            loadingScreen.style.display = 'flex';
+            errorScreen.style.display = 'none';
             
             try {
-                // 尝试多种方式提取和修复数据
-                let fixedData = [];
-                
-                // 方法1: 尝试直接提取JSON
-                if (input.startsWith('[')) {
-                    // 可能是纯JSON数组
-                    fixedData = JSON.parse(input);
-                } else if (input.includes('const movieData')) {
-                    // 尝试提取movieData的值
-                    const match = input.match(/const\s+movieData\s*=\s*([\s\S]+?);/);
-                    if (match && match[1]) {
-                        fixedData = JSON.parse(match[1]);
-                    }
+                // 检查浏览器是否支持HLS
+                if (url.includes('.m3u8') && Hls.isSupported()) {
+                    hls = new Hls();
+                    
+                    // 错误处理
+                    hls.on(Hls.Events.ERROR, function(event, data) {
+                        if (data.fatal) {
+                            switch(data.type) {
+                                case Hls.ErrorTypes.NETWORK_ERROR:
+                                    showError('网络错误，无法加载视频');
+                                    break;
+                                case Hls.ErrorTypes.MEDIA_ERROR:
+                                    showError('媒体错误，视频格式不支持');
+                                    break;
+                                default:
+                                    showError('加载视频时发生错误');
+                                    break;
+                            }
+                        }
+                    });
+                    
+                    // 加载成功
+                    hls.on(Hls.Events.MANIFEST_PARSED, function() {
+                        loadingScreen.style.display = 'none';
+                        videoPlayer.play().catch(e => {
+                            console.log('自动播放被阻止:', e);
+                        });
+                    });
+                    
+                    hls.loadSource(url);
+                    hls.attachMedia(videoPlayer);
+                } else if (url.includes('.m3u8')) {
+                    // 不支持HLS的浏览器
+                    videoPlayer.src = url;
+                    videoPlayer.addEventListener('loadedmetadata', function() {
+                        loadingScreen.style.display = 'none';
+                        videoPlayer.play().catch(e => {
+                            console.log('自动播放被阻止:', e);
+                        });
+                    });
+                    videoPlayer.addEventListener('error', function() {
+                        showError('您的浏览器不支持m3u8格式，请尝试其他浏览器');
+                    });
                 } else {
-                    // 尝试作为完整脚本执行
-                    const tempScript = document.createElement('script');
-                    const tempDiv = document.createElement('div');
-                    tempDiv.style.display = 'none';
-                    tempDiv.innerHTML = `<script>window.tempMovieData = null; try { ${input} } catch(e) {} <\/script>`;
-                    document.body.appendChild(tempDiv);
-                    if (window.tempMovieData) {
-                        fixedData = window.tempMovieData;
-                    }
-                    document.body.removeChild(tempDiv);
+                    // 其他视频格式
+                    videoPlayer.src = url;
+                    videoPlayer.addEventListener('loadedmetadata', function() {
+                        loadingScreen.style.display = 'none';
+                        videoPlayer.play().catch(e => {
+                            console.log('自动播放被阻止:', e);
+                        });
+                    });
+                    videoPlayer.addEventListener('error', function() {
+                        showError('视频加载失败，格式可能不支持');
+                    });
                 }
-                
-                // 验证修复后的数据
-                if (!Array.isArray(fixedData)) {
-                    throw new Error('无法识别有效的电影数据格式');
-                }
-                
-                // 清理和标准化数据
-                fixedData = fixedData.map(item => ({
-                    name: item.name || '未知电影',
-                    category: item.category || '其他',
-                    m3u8: item.m3u8 || item.url || item.path || ''
-                })).filter(item => item.m3u8);
-                
-                // 生成修复后的代码
-                const fixedCode = `// 电影数据 - 修复后\nconst movieData = ${JSON.stringify(fixedData, null, 2)};`;
-                fixResult.textContent = fixedCode;
-                
-                // 提示用户保存修复后的代码
-                alert('格式已修复！请复制修复后的内容并保存为movies.js');
-                
-                // 使用修复后的数据更新界面
-                movieData = fixedData;
-                window.movieData = fixedData;
-                processMovieData();
-                
             } catch (error) {
-                fixResult.textContent = '修复失败: ' + error.message + '\n请检查输入格式';
-                console.error('格式修复错误:', error);
+                showError('播放视频时发生错误: ' + error.message);
             }
         }
-
-        // 生成示例movies.js
-        function generateExampleMovies() {
-            const exampleData = [
-                {
-                    "name": "示例电影1",
-                    "category": "动作",
-                    "m3u8": "https://example.com/movie1.m3u8"
-                },
-                {
-                    "name": "示例电影2",
-                    "category": "喜剧",
-                    "m3u8": "https://example.com/movie2.m3u8"
-                },
-                {
-                    "name": "示例电影3",
-                    "category": "科幻",
-                    "m3u8": "https://example.com/movie3.m3u8"
-                }
-            ];
-            
-            const exampleCode = `// 电影数据 - 示例\nconst movieData = ${JSON.stringify(exampleData, null, 2)};`;
-            fixInput.value = exampleCode;
-            fixResult.textContent = exampleCode;
-            alert('已生成示例数据！请修改示例数据并保存为movies.js');
-        }
-
-        // 显示加载状态
-        function showLoading() {
-            loadingIndicator.classList.remove('hidden');
-        }
-
-        function hideLoading() {
-            loadingIndicator.classList.add('hidden');
-        }
-
+        
+        // 显示错误
         function showError(message) {
-            errorText.textContent = message;
-            errorContainer.classList.remove('hidden');
+            loadingScreen.style.display = 'none';
+            errorMessage.textContent = message;
+            errorScreen.style.display = 'flex';
         }
-
-        function hideError() {
-            errorContainer.classList.add('hidden');
-        }
-
-        // 监听手机横竖屏变化
-        window.addEventListener('orientationchange', () => {
-            videoPlayer.style.width = '100%';
-            videoPlayer.style.height = '100%';
-        });
+        
+        // 页面加载完成后初始化
+        window.addEventListener('DOMContentLoaded', loadMovieData);
     </script>
 </body>
 </html>
