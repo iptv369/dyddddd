@@ -2,8 +2,8 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>电脑端优化视频播放器</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>电影播放器</title>
     <style>
         /* 全局样式重置 */
         * {
@@ -11,576 +11,496 @@
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         body {
             font-family: 'Microsoft YaHei', Arial, sans-serif;
-            background-color: #f5f5f5;
-            color: #333;
+            background-color: #121212;
+            color: #ffffff;
             line-height: 1.6;
         }
-        
+
         .container {
-            max-width: 1400px;
+            max-width: 1200px;
             margin: 0 auto;
             padding: 20px;
         }
-        
+
         header {
             text-align: center;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
         }
-        
+
         h1 {
-            color: #2c3e50;
-            font-size: 2.5rem;
+            color: #ffffff;
+            font-size: 1.8rem;
+            margin-bottom: 10px;
         }
-        
-        /* 视频播放容器 - 桌面端优化 */
-        .video-wrapper {
-            width: 100%;
-            background-color: #000;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 500px;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
-        }
-        
-        /* 视频播放器样式 */
-        .video-container {
+
+        /* 视频播放区域 - 重点优化手机端尺寸 */
+        .player-container {
             position: relative;
             width: 100%;
-            height: 100%;
-            max-width: 1280px;
+            max-width: 800px;
+            margin: 0 auto 30px;
+            background-color: #000;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
         }
-        
+
+        /* 手机端播放器比例优化 */
+        @media (max-width: 768px) {
+            .player-container {
+                width: 100%;
+                height: auto;
+                aspect-ratio: 9/16; /* 竖屏视频比例，更适合手机全屏观看 */
+            }
+            
+            /* 横屏模式下调整比例 */
+            @media (orientation: landscape) {
+                .player-container {
+                    aspect-ratio: 16/9;
+                    max-height: 80vh;
+                }
+            }
+        }
+
         video {
             width: 100%;
             height: 100%;
             object-fit: contain;
-            display: block;
             background-color: #000;
         }
-        
+
         /* 加载状态 */
         .loading {
             position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: white;
-            font-size: 18px;
-            text-align: center;
-            z-index: 10;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
             background-color: rgba(0, 0, 0, 0.8);
-            padding: 20px 40px;
-            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
         }
-        
+
         .loading-spinner {
-            border: 5px solid rgba(255, 255, 255, 0.3);
+            border: 4px solid rgba(255, 255, 255, 0.3);
             border-radius: 50%;
-            border-top: 5px solid white;
-            width: 50px;
-            height: 50px;
+            border-top: 4px solid #ffffff;
+            width: 40px;
+            height: 40px;
             animation: spin 1s linear infinite;
-            margin: 0 auto 15px;
+            margin-bottom: 10px;
         }
-        
+
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
-        
-        /* 错误消息 */
+
+        /* 错误信息 */
         .error-message {
-            display: none;
             position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background-color: #e74c3c;
-            color: white;
-            padding: 25px;
-            border-radius: 8px;
-            text-align: center;
-            z-index: 20;
-            max-width: 80%;
-            font-size: 16px;
-        }
-        
-        .error-message .retry-btn {
-            margin-top: 15px;
-            padding: 8px 20px;
-            background-color: white;
-            color: #e74c3c;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: background-color 0.3s;
-        }
-        
-        .error-message .retry-btn:hover {
-            background-color: #f8f9fa;
-        }
-        
-        /* 播放提示信息 */
-        .info-message {
-            background-color: #3498db;
-            color: white;
-            padding: 15px;
-            margin: 20px 0;
-            border-radius: 6px;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            padding: 20px;
             text-align: center;
         }
-        
-        /* 电影信息样式 */
-        .movie-info {
-            background-color: white;
-            padding: 25px;
-            border-radius: 8px;
-            margin-top: 25px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-        }
-        
-        h2 {
-            color: #2c3e50;
-            margin-bottom: 15px;
-            font-size: 2rem;
-        }
-        
-        /* 视频列表样式 */
-        .video-list {
-            margin-top: 35px;
-        }
-        
-        .video-list h2 {
+
+        /* 分类目录 - 新增功能 */
+        .category-section {
             margin-bottom: 20px;
         }
-        
-        .video-items {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 25px;
+
+        .category-tabs {
+            display: flex;
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            gap: 10px;
+            padding: 10px 0;
+            scrollbar-width: none; /* Firefox */
+            -ms-overflow-style: none; /* IE and Edge */
         }
-        
+
+        .category-tabs::-webkit-scrollbar {
+            display: none; /* Chrome, Safari, Opera */
+        }
+
+        .category-tab {
+            padding: 8px 16px;
+            background-color: #333;
+            border: none;
+            border-radius: 20px;
+            color: white;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: background-color 0.3s ease;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+
+        .category-tab.active {
+            background-color: #555;
+            font-weight: bold;
+        }
+
+        /* 视频列表 */
+        .video-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        /* 手机端视频列表布局优化 */
+        @media (max-width: 768px) {
+            .video-list {
+                grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+                gap: 10px;
+            }
+        }
+
         .video-item {
-            background-color: white;
+            background-color: #1e1e1e;
             border-radius: 8px;
             overflow: hidden;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
             cursor: pointer;
-            transition: transform 0.3s, box-shadow 0.3s;
-            height: 100%;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
             display: flex;
             flex-direction: column;
         }
-        
+
         .video-item:hover {
-            transform: translateY(-8px);
-            box-shadow: 0 12px 25px rgba(0, 0, 0, 0.2);
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
         }
-        
+
         .video-thumbnail {
             width: 100%;
-            height: 180px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: bold;
-            font-size: 18px;
-            text-align: center;
-            padding: 20px;
+            aspect-ratio: 3/4; /* 竖屏缩略图，更适合手机浏览 */
+            background-color: #333;
+            position: relative;
+            overflow: hidden;
         }
-        
-        .video-details {
-            padding: 20px;
+
+        .video-info {
+            padding: 10px;
             flex-grow: 1;
-            display: flex;
-            flex-direction: column;
         }
-        
+
         .video-title {
-            font-weight: bold;
-            text-align: center;
-            margin-bottom: 10px;
-            font-size: 18px;
-        }
-        
-        .video-category {
             font-size: 14px;
-            color: #7f8c8d;
+            margin-bottom: 5px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .video-category {
+            font-size: 12px;
+            opacity: 0.8;
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-top: 5px;
+        }
+
+        /* 隐藏类 */
+        .hidden {
+            display: none;
+        }
+
+        /* 底部提示 */
+        .footer {
             text-align: center;
-            margin-top: auto;
-        }
-        
-        /* 桌面端特定样式 */
-        @media (min-width: 1024px) {
-            .video-wrapper {
-                min-height: 600px;
-            }
-            
-            video {
-                max-height: 90vh;
-            }
-        }
-        
-        /* 平板和移动设备适配 */
-        @media (max-width: 768px) {
-            h1 {
-                font-size: 2rem;
-            }
-            
-            .container {
-                padding: 15px;
-            }
-            
-            .video-items {
-                grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-                gap: 15px;
-            }
-            
-            .video-wrapper {
-                min-height: 350px;
-            }
-        }
-        
-        @media (max-width: 480px) {
-            h1 {
-                font-size: 1.8rem;
-            }
-            
-            .container {
-                padding: 10px;
-            }
-            
-            .video-items {
-                grid-template-columns: 1fr;
-            }
-            
-            .video-wrapper {
-                min-height: 250px;
-            }
-            
-            .loading, .error-message {
-                padding: 15px 20px;
-                font-size: 14px;
-            }
+            margin-top: 40px;
+            padding: 20px;
+            font-size: 12px;
+            color: #666;
         }
     </style>
+    <!-- HLS.js 支持 -->
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>电影播放器 - 电脑端优化版</h1>
+            <h1>电影播放器</h1>
         </header>
-        
-        <div class="info-message">
-            <p>本播放器已针对桌面浏览器优化，支持m3u8流媒体格式。如果视频无法播放，请尝试使用Chrome、Firefox或Edge浏览器。</p>
-        </div>
-        
-        <div class="video-wrapper">
-            <div class="video-container">
-                <!-- 视频播放器 -->
-                <video id="movie-player" controls autoplay></video>
-                
-                <!-- 加载状态 -->
-                <div class="loading" id="loading">
-                    <div class="loading-spinner"></div>
-                    <p>正在加载视频，请稍候...</p>
-                </div>
-                
-                <!-- 错误消息 -->
-                <div class="error-message" id="error-message">
-                    <p id="error-text">无法加载视频，请检查网络连接。</p>
-                    <button class="retry-btn" onclick="retryLoading()">重试</button>
-                </div>
+
+        <!-- 视频播放区域 -->
+        <div class="player-container">
+            <video id="videoPlayer" controls></video>
+            <div id="loadingIndicator" class="loading">
+                <div class="loading-spinner"></div>
+                <p>加载中...</p>
+            </div>
+            <div id="errorContainer" class="error-message hidden">
+                <p id="errorText">加载失败，请稍后重试</p>
+                <button id="retryButton">重试</button>
             </div>
         </div>
-        
-        <div class="movie-info" id="movie-info">
-            <h2 id="movie-title">电影信息</h2>
-            <p id="movie-description">视频加载中...</p>
+
+        <!-- 分类目录区域 -->
+        <div class="category-section">
+            <div class="category-tabs" id="categoryTabs">
+                <!-- 分类标签将通过JavaScript动态生成 -->
+            </div>
         </div>
-        
+
         <!-- 视频列表 -->
-        <div class="video-list">
-            <h2>视频列表</h2>
-            <div class="video-items" id="video-items">
-                <!-- 视频列表项将由JavaScript动态添加 -->
-                <p>正在加载视频列表...</p>
-            </div>
+        <div class="video-list" id="videoList">
+            <!-- 视频项将通过JavaScript动态生成 -->
         </div>
+
+        <footer class="footer">
+            <p>请点击视频开始播放</p>
+        </footer>
     </div>
-    
-    <!-- 引入HLS.js库以支持m3u8格式播放 -->
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-    
-    <!-- 引入movies.js文件 -->
-    <script src="./movies.js"></script>
-    
+
     <script>
-        // 获取DOM元素
-        const video = document.getElementById('movie-player');
-        const loading = document.getElementById('loading');
-        const errorMessage = document.getElementById('error-message');
-        const errorText = document.getElementById('error-text');
-        const movieTitle = document.getElementById('movie-title');
-        const movieDescription = document.getElementById('movie-description');
-        const videoItems = document.getElementById('video-items');
-        
-        let currentVideoIndex = 0;
+        // 视频播放器和相关元素
+        const videoPlayer = document.getElementById('videoPlayer');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const errorContainer = document.getElementById('errorContainer');
+        const errorText = document.getElementById('errorText');
+        const retryButton = document.getElementById('retryButton');
+        const videoList = document.getElementById('videoList');
+        const categoryTabs = document.getElementById('categoryTabs');
+        let currentCategory = '全部';
         let hls = null;
-        
-        // 初始化播放器
-        function initializePlayer() {
-            if (typeof movieData === 'undefined' || !Array.isArray(movieData) || movieData.length === 0) {
-                showError('movies.js文件未正确配置，请检查文件内容。');
-                return;
+
+        // 加载视频数据
+        async function loadMovies() {
+            try {
+                // 引入 movies.js
+                const response = await fetch('movies.js');
+                const scriptContent = await response.text();
+                
+                // 执行脚本以获取 movieData
+                const script = document.createElement('script');
+                script.textContent = scriptContent;
+                document.body.appendChild(script);
+                document.body.removeChild(script);
+                
+                // 确保 movieData 存在
+                if (window.movieData && Array.isArray(window.movieData)) {
+                    // 生成分类标签
+                    generateCategoryTabs();
+                    // 生成视频列表
+                    generateVideoList();
+                    // 默认播放第一个视频
+                    if (window.movieData.length > 0) {
+                        playVideo(window.movieData[0].m3u8);
+                    }
+                } else {
+                    showError('电影数据格式错误');
+                }
+            } catch (error) {
+                console.error('加载电影数据失败:', error);
+                showError('加载电影列表失败');
             }
-            
-            // 默认加载第一个视频
-            loadVideo(0);
-            
-            // 生成视频列表
-            generateVideoList();
         }
-        
-        // 加载指定索引的视频
-        function loadVideo(index) {
-            if (index < 0 || index >= movieData.length) {
-                showError('无效的视频索引。');
-                return;
-            }
+
+        // 生成分类标签
+        function generateCategoryTabs() {
+            // 收集所有分类
+            const categories = new Set(['全部']);
+            window.movieData.forEach(movie => {
+                categories.add(movie.category);
+            });
+
+            // 清空现有标签
+            categoryTabs.innerHTML = '';
+
+            // 创建分类标签
+            categories.forEach(category => {
+                const tab = document.createElement('button');
+                tab.className = `category-tab ${category === currentCategory ? 'active' : ''}`;
+                tab.textContent = category;
+                tab.addEventListener('click', () => {
+                    // 更新当前分类
+                    currentCategory = category;
+                    // 更新标签状态
+                    document.querySelectorAll('.category-tab').forEach(t => {
+                        t.classList.remove('active');
+                    });
+                    tab.classList.add('active');
+                    // 刷新视频列表
+                    generateVideoList();
+                });
+                categoryTabs.appendChild(tab);
+            });
+        }
+
+        // 生成视频列表
+        function generateVideoList() {
+            // 清空现有列表
+            videoList.innerHTML = '';
+
+            // 过滤视频
+            const filteredMovies = currentCategory === '全部' 
+                ? window.movieData 
+                : window.movieData.filter(movie => movie.category === currentCategory);
+
+            // 创建视频项
+            filteredMovies.forEach(movie => {
+                const videoItem = document.createElement('div');
+                videoItem.className = 'video-item';
+                
+                // 创建缩略图区域
+                const thumbnail = document.createElement('div');
+                thumbnail.className = 'video-thumbnail';
+                
+                // 创建视频信息
+                const info = document.createElement('div');
+                info.className = 'video-info';
+                
+                const title = document.createElement('div');
+                title.className = 'video-title';
+                title.textContent = movie.name;
+                
+                const category = document.createElement('div');
+                category.className = 'video-category';
+                category.textContent = movie.category;
+                
+                // 设置分类颜色
+                setCategoryColor(category, movie.category);
+                
+                // 组装元素
+                info.appendChild(title);
+                info.appendChild(category);
+                videoItem.appendChild(thumbnail);
+                videoItem.appendChild(info);
+                
+                // 添加点击事件
+                videoItem.addEventListener('click', () => {
+                    playVideo(movie.m3u8);
+                    // 滚动到播放器
+                    document.querySelector('.player-container').scrollIntoView({ behavior: 'smooth' });
+                });
+                
+                videoList.appendChild(videoItem);
+            });
+        }
+
+        // 设置分类颜色
+        function setCategoryColor(element, category) {
+            const categoryColors = {
+                '动作': '#ff4444',
+                '喜剧': '#44ff44',
+                '科幻': '#4444ff',
+                '恐怖': '#aa0000',
+                '爱情': '#ff44aa',
+                '动画': '#44aaaa',
+                '纪录片': '#aaaaaa',
+                '其他': '#888888'
+            };
             
-            currentVideoIndex = index;
+            element.style.backgroundColor = categoryColors[category] || '#666666';
+        }
+
+        // 播放视频
+        function playVideo(url) {
+            // 显示加载指示器
+            showLoading();
+            hideError();
             
-            // 显示加载状态
-            loading.style.display = 'block';
-            errorMessage.style.display = 'none';
-            
-            // 获取视频数据
-            const movie = movieData[index];
-            
-            // 设置视频标题和分类
-            movieTitle.textContent = movie.name || '未命名电影';
-            movieDescription.textContent = `分类: ${movie.category || '未知'} | 正在播放第 ${index + 1} 个视频`;
-            
-            // 如果有之前的HLS实例，先销毁
+            // 如果之前有HLS实例，销毁它
             if (hls) {
                 hls.destroy();
                 hls = null;
             }
             
-            // 清空视频源
-            video.pause();
-            video.src = '';
-            video.innerHTML = '';
-            
-            // 提取并清理URL
-            let cleanUrl = movie.url || '';
-            cleanUrl = cleanUrl.replace(/[`\s]/g, ''); // 移除反引号和空格
-            
-            if (!cleanUrl) {
-                showError('视频URL为空。');
-                return;
-            }
-            
-            // 判断是否为m3u8格式
-            if (cleanUrl.includes('.m3u8')) {
-                // 尝试使用HLS.js播放m3u8格式
-                if (Hls.isSupported()) {
-                    playWithHLS(cleanUrl);
-                } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-                    // Safari浏览器原生支持HLS
-                    playNativeHLS(cleanUrl);
-                } else {
-                    showError('您的浏览器不支持m3u8流媒体格式，请尝试使用Chrome、Firefox或Safari浏览器。');
-                }
-            } else {
-                // 普通视频格式
-                playRegularVideo(cleanUrl);
-            }
-        }
-        
-        // 使用HLS.js播放m3u8格式视频
-        function playWithHLS(url) {
-            hls = new Hls({
-                maxBufferLength: 30, // 增加缓冲区长度
-                maxMaxBufferLength: 60,
-                startLevel: -1, // 自动选择合适的质量级别
-                enableWorker: true, // 启用Web Worker
-                lowLatencyMode: false // 关闭低延迟模式以提高兼容性
-            });
-            
-            // 绑定视频元素
-            hls.attachMedia(video);
-            
-            // 加载m3u8播放列表
-            hls.loadSource(url);
-            
-            // 监听HLS事件
-            hls.on(Hls.Events.MANIFEST_PARSED, function() {
-                console.log('HLS: 播放列表解析完成');
-                // 延迟播放以确保有足够的缓冲区
-                setTimeout(() => {
-                    video.play().catch(err => {
-                        console.log('自动播放被阻止:', err);
-                        loading.style.display = 'none';
+            // 检查是否支持HLS
+            if (Hls.isSupported()) {
+                hls = new Hls();
+                
+                // 监听HLS事件
+                hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                    hideLoading();
+                    videoPlayer.play().catch(err => {
+                        console.error('播放失败:', err);
                     });
-                    loading.style.display = 'none';
-                }, 500);
-            });
-            
-            // 监听加载错误
-            hls.on(Hls.Events.ERROR, function(event, data) {
-                console.error('HLS错误:', data);
-                let errorMsg = '视频加载失败';
-                
-                switch(data.type) {
-                    case Hls.ErrorTypes.NETWORK_ERROR:
-                        errorMsg = '网络错误，请检查您的网络连接';
-                        break;
-                    case Hls.ErrorTypes.MEDIA_ERROR:
-                        errorMsg = '视频解码错误';
-                        break;
-                    case Hls.ErrorTypes.MANIFEST_ERROR:
-                        errorMsg = '无法解析视频播放列表';
-                        break;
-                    default:
-                        errorMsg = '视频加载遇到未知错误';
-                }
-                
-                showError(errorMsg);
-            });
-            
-            // 监听缓冲事件
-            video.addEventListener('waiting', function() {
-                loading.style.display = 'block';
-            });
-            
-            video.addEventListener('playing', function() {
-                loading.style.display = 'none';
-            });
-        }
-        
-        // 使用原生HLS播放（Safari）
-        function playNativeHLS(url) {
-            video.src = url;
-            video.type = 'application/vnd.apple.mpegurl';
-            
-            video.addEventListener('loadedmetadata', function() {
-                loading.style.display = 'none';
-            });
-            
-            video.addEventListener('error', function() {
-                showError('视频加载失败，请检查视频链接。');
-            });
-            
-            video.load();
-        }
-        
-        // 播放普通视频格式
-        function playRegularVideo(url) {
-            const source = document.createElement('source');
-            
-            // 根据URL后缀设置MIME类型
-            if (url.endsWith('.mp4')) {
-                source.type = 'video/mp4';
-            } else if (url.endsWith('.webm')) {
-                source.type = 'video/webm';
-            } else if (url.endsWith('.ogg')) {
-                source.type = 'video/ogg';
-            } else {
-                source.type = 'video/mp4'; // 默认类型
-            }
-            
-            source.src = url;
-            video.appendChild(source);
-            
-            // 视频加载成功
-            video.addEventListener('loadeddata', function() {
-                loading.style.display = 'none';
-            });
-            
-            // 视频加载失败
-            video.addEventListener('error', function() {
-                showError('视频加载失败，请检查视频文件格式是否正确。');
-            });
-            
-            // 加载并尝试播放
-            video.load();
-            video.play().catch(err => {
-                console.log('自动播放被阻止:', err);
-                loading.style.display = 'none';
-            });
-        }
-        
-        // 显示错误消息
-        function showError(message) {
-            loading.style.display = 'none';
-            errorText.textContent = message;
-            errorMessage.style.display = 'block';
-        }
-        
-        // 重试加载视频
-        function retryLoading() {
-            loadVideo(currentVideoIndex);
-        }
-        
-        // 生成视频列表
-        function generateVideoList() {
-            videoItems.innerHTML = '';
-            
-            movieData.forEach((movie, index) => {
-                const videoItem = document.createElement('div');
-                videoItem.className = 'video-item';
-                videoItem.dataset.index = index;
-                
-                // 为不同分类生成不同的占位图颜色
-                const categoryColors = {
-                    '字幕': '#3498db',
-                    '高清': '#2ecc71',
-                    '蓝光': '#e74c3c',
-                    '抢先': '#f39c12',
-                    '其他': '#9b59b6'
-                };
-                
-                const bgColor = categoryColors[movie.category] || categoryColors['其他'];
-                
-                videoItem.innerHTML = `
-                    <div class="video-thumbnail" style="background-color: ${bgColor};">
-                        ${movie.name}
-                    </div>
-                    <div class="video-details">
-                        <div class="video-title">${movie.name}</div>
-                        <div class="video-category">${movie.category}</div>
-                    </div>
-                `;
-                
-                videoItem.addEventListener('click', function() {
-                    loadVideo(index);
-                    // 滚动到视频播放器
-                    document.querySelector('.video-wrapper').scrollIntoView({ behavior: 'smooth' });
                 });
                 
-                videoItems.appendChild(videoItem);
-            });
-        }
-        
-        // 页面加载完成后初始化
-        document.addEventListener('DOMContentLoaded', function() {
-            // 检查浏览器兼容性
-            if (!document.createElement('video').canPlayType) {
-                showError('您的浏览器不支持HTML5视频播放，请升级到现代浏览器。');
-                return;
+                hls.on(Hls.Events.ERROR, (event, data) => {
+                    if (data.fatal) {
+                        hideLoading();
+                        showError('视频加载失败');
+                    }
+                });
+                
+                // 加载HLS源
+                hls.loadSource(url);
+                hls.attachMedia(videoPlayer);
+            } else if (videoPlayer.canPlayType('application/vnd.apple.mpegurl')) {
+                // Safari原生支持HLS
+                videoPlayer.src = url;
+                videoPlayer.addEventListener('loadedmetadata', () => {
+                    hideLoading();
+                    videoPlayer.play().catch(err => {
+                        console.error('播放失败:', err);
+                    });
+                });
+                videoPlayer.addEventListener('error', () => {
+                    hideLoading();
+                    showError('视频加载失败');
+                });
+            } else {
+                hideLoading();
+                showError('您的浏览器不支持HLS格式视频');
             }
-            
-            initializePlayer();
+        }
+
+        // 显示加载状态
+        function showLoading() {
+            loadingIndicator.classList.remove('hidden');
+        }
+
+        // 隐藏加载状态
+        function hideLoading() {
+            loadingIndicator.classList.add('hidden');
+        }
+
+        // 显示错误信息
+        function showError(message) {
+            errorText.textContent = message;
+            errorContainer.classList.remove('hidden');
+        }
+
+        // 隐藏错误信息
+        function hideError() {
+            errorContainer.classList.add('hidden');
+        }
+
+        // 重试按钮事件
+        retryButton.addEventListener('click', () => {
+            if (window.movieData && window.movieData.length > 0) {
+                playVideo(window.movieData[0].m3u8);
+            }
+        });
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', loadMovies);
+
+        // 监听手机横竖屏变化，优化播放体验
+        window.addEventListener('orientationchange', () => {
+            // 横竖屏切换时重新调整播放器大小
+            videoPlayer.style.width = '100%';
+            videoPlayer.style.height = '100%';
         });
     </script>
 </body>
