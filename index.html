@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>电影播放器</title>
     <style>
-        /* 全局样式重置 */
+        /* 保持原有样式 */
         * {
             margin: 0;
             padding: 0;
@@ -36,7 +36,7 @@
             margin-bottom: 10px;
         }
 
-        /* 视频播放区域 - 重点优化手机端尺寸 */
+        /* 视频播放区域 */
         .player-container {
             position: relative;
             width: 100%;
@@ -53,10 +53,9 @@
             .player-container {
                 width: 100%;
                 height: auto;
-                aspect-ratio: 9/16; /* 竖屏视频比例，更适合手机全屏观看 */
+                aspect-ratio: 9/16; /* 竖屏视频比例 */
             }
             
-            /* 横屏模式下调整比例 */
             @media (orientation: landscape) {
                 .player-container {
                     aspect-ratio: 16/9;
@@ -119,7 +118,7 @@
             text-align: center;
         }
 
-        /* 分类目录 - 新增功能 */
+        /* 分类目录 */
         .category-section {
             margin-bottom: 20px;
         }
@@ -130,12 +129,12 @@
             overflow-x: auto;
             gap: 10px;
             padding: 10px 0;
-            scrollbar-width: none; /* Firefox */
-            -ms-overflow-style: none; /* IE and Edge */
+            scrollbar-width: none;
+            -ms-overflow-style: none;
         }
 
         .category-tabs::-webkit-scrollbar {
-            display: none; /* Chrome, Safari, Opera */
+            display: none;
         }
 
         .category-tab {
@@ -164,7 +163,6 @@
             margin-top: 20px;
         }
 
-        /* 手机端视频列表布局优化 */
         @media (max-width: 768px) {
             .video-list {
                 grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
@@ -189,7 +187,7 @@
 
         .video-thumbnail {
             width: 100%;
-            aspect-ratio: 3/4; /* 竖屏缩略图，更适合手机浏览 */
+            aspect-ratio: 3/4;
             background-color: #333;
             position: relative;
             overflow: hidden;
@@ -217,12 +215,10 @@
             margin-top: 5px;
         }
 
-        /* 隐藏类 */
         .hidden {
             display: none;
         }
 
-        /* 底部提示 */
         .footer {
             text-align: center;
             margin-top: 40px;
@@ -230,8 +226,58 @@
             font-size: 12px;
             color: #666;
         }
+
+        /* 新增：格式修复工具样式 */
+        .fix-tool {
+            background-color: #1e1e1e;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .fix-tool h3 {
+            margin-bottom: 15px;
+            color: #fff;
+        }
+
+        .fix-tool textarea {
+            width: 100%;
+            min-height: 150px;
+            padding: 10px;
+            background-color: #2d2d2d;
+            border: 1px solid #444;
+            border-radius: 4px;
+            color: #fff;
+            font-family: 'Courier New', monospace;
+            margin-bottom: 10px;
+        }
+
+        .fix-tool button {
+            padding: 8px 16px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+
+        .fix-tool button:hover {
+            background-color: #2980b9;
+        }
+
+        .fix-result {
+            margin-top: 15px;
+            padding: 15px;
+            background-color: #2d2d2d;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
     </style>
-    <!-- HLS.js 支持 -->
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 </head>
 <body>
@@ -253,6 +299,18 @@
             </div>
         </div>
 
+        <!-- 格式修复工具 -->
+        <div class="fix-tool">
+            <h3>电影格式修复工具</h3>
+            <p style="margin-bottom: 10px; font-size: 14px; opacity: 0.8;">如果遇到格式错误，可以在这里修复movies.js文件</p>
+            <textarea id="fixInput" placeholder="粘贴您的movies.js内容到这里..."></textarea>
+            <div>
+                <button id="fixFormatButton">修复格式</button>
+                <button id="generateExampleButton">生成示例</button>
+            </div>
+            <div class="fix-result" id="fixResult">修复后的内容将显示在这里</div>
+        </div>
+
         <!-- 分类目录区域 -->
         <div class="category-section">
             <div class="category-tabs" id="categoryTabs">
@@ -271,7 +329,7 @@
     </div>
 
     <script>
-        // 视频播放器和相关元素
+        // 获取DOM元素
         const videoPlayer = document.getElementById('videoPlayer');
         const loadingIndicator = document.getElementById('loadingIndicator');
         const errorContainer = document.getElementById('errorContainer');
@@ -279,66 +337,158 @@
         const retryButton = document.getElementById('retryButton');
         const videoList = document.getElementById('videoList');
         const categoryTabs = document.getElementById('categoryTabs');
+        const fixInput = document.getElementById('fixInput');
+        const fixButton = document.getElementById('fixFormatButton');
+        const generateButton = document.getElementById('generateExampleButton');
+        const fixResult = document.getElementById('fixResult');
+        
         let currentCategory = '全部';
         let hls = null;
+        let movieData = []; // 存储电影数据
 
-        // 加载视频数据
+        // 初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            // 尝试加载movies.js
+            loadMovies();
+            
+            // 绑定格式修复工具事件
+            fixButton.addEventListener('click', fixMoviesFormat);
+            generateButton.addEventListener('click', generateExampleMovies);
+            
+            // 重试按钮事件
+            retryButton.addEventListener('click', () => {
+                loadMovies();
+            });
+        });
+
+        // 加载视频数据 - 增强版，添加错误处理
         async function loadMovies() {
+            showLoading();
+            hideError();
+            
             try {
-                // 引入 movies.js
-                const response = await fetch('movies.js');
-                const scriptContent = await response.text();
-                
-                // 执行脚本以获取 movieData
-                const script = document.createElement('script');
-                script.textContent = scriptContent;
-                document.body.appendChild(script);
-                document.body.removeChild(script);
-                
-                // 确保 movieData 存在
+                // 尝试直接从window获取movieData
                 if (window.movieData && Array.isArray(window.movieData)) {
-                    // 生成分类标签
-                    generateCategoryTabs();
-                    // 生成视频列表
-                    generateVideoList();
-                    // 默认播放第一个视频
-                    if (window.movieData.length > 0) {
-                        playVideo(window.movieData[0].m3u8);
+                    movieData = window.movieData;
+                    processMovieData();
+                    return;
+                }
+
+                // 尝试动态加载movies.js
+                try {
+                    const script = document.createElement('script');
+                    script.src = 'movies.js';
+                    script.onload = () => {
+                        try {
+                            if (window.movieData && Array.isArray(window.movieData)) {
+                                movieData = window.movieData;
+                                processMovieData();
+                            } else {
+                                throw new Error('movies.js中未找到有效的movieData数组');
+                            }
+                        } catch (e) {
+                            hideLoading();
+                            showError(`加载失败: ${e.message}\n请检查movies.js文件格式`);
+                        }
+                    };
+                    script.onerror = () => {
+                        hideLoading();
+                        showError('无法加载movies.js文件\n请确保文件存在且格式正确');
+                    };
+                    document.body.appendChild(script);
+                } catch (e) {
+                    // 尝试使用fetch加载并解析
+                    try {
+                        const response = await fetch('movies.js');
+                        const scriptContent = await response.text();
+                        
+                        // 提取movieData
+                        const dataMatch = scriptContent.match(/const\s+movieData\s*=\s*(\[.+?\]);/s);
+                        if (dataMatch && dataMatch[1]) {
+                            try {
+                                movieData = JSON.parse(dataMatch[1]);
+                                if (Array.isArray(movieData)) {
+                                    window.movieData = movieData;
+                                    processMovieData();
+                                } else {
+                                    throw new Error('movieData不是有效数组');
+                                }
+                            } catch (parseError) {
+                                hideLoading();
+                                showError('JSON解析错误: ' + parseError.message);
+                                // 显示格式修复工具中的原始内容
+                                fixInput.value = scriptContent;
+                            }
+                        } else {
+                            throw new Error('无法从movies.js中提取movieData');
+                        }
+                    } catch (fetchError) {
+                        hideLoading();
+                        showError(`加载失败: ${fetchError.message}\n请确保movies.js文件存在`);
                     }
-                } else {
-                    showError('电影数据格式错误');
                 }
             } catch (error) {
                 console.error('加载电影数据失败:', error);
-                showError('加载电影列表失败');
+                hideLoading();
+                showError('加载电影列表失败: ' + error.message);
             }
+        }
+
+        // 处理电影数据
+        function processMovieData() {
+            // 验证和清理数据
+            movieData = validateAndCleanMovieData(movieData);
+            
+            if (movieData.length === 0) {
+                hideLoading();
+                showError('未找到有效的电影数据');
+                return;
+            }
+            
+            // 生成分类标签和视频列表
+            generateCategoryTabs();
+            generateVideoList();
+            
+            // 默认播放第一个视频
+            playVideo(movieData[0].m3u8);
+        }
+
+        // 验证和清理电影数据
+        function validateAndCleanMovieData(data) {
+            if (!Array.isArray(data)) return [];
+            
+            return data.filter(item => {
+                // 基本验证
+                if (!item || typeof item !== 'object') return false;
+                
+                // 确保必需字段存在
+                item.name = item.name || '未知电影';
+                item.category = item.category || '其他';
+                item.m3u8 = item.m3u8 || '';
+                
+                return !!item.m3u8; // 必须有m3u8链接
+            });
         }
 
         // 生成分类标签
         function generateCategoryTabs() {
-            // 收集所有分类
             const categories = new Set(['全部']);
-            window.movieData.forEach(movie => {
+            movieData.forEach(movie => {
                 categories.add(movie.category);
             });
 
-            // 清空现有标签
             categoryTabs.innerHTML = '';
 
-            // 创建分类标签
             categories.forEach(category => {
                 const tab = document.createElement('button');
                 tab.className = `category-tab ${category === currentCategory ? 'active' : ''}`;
                 tab.textContent = category;
                 tab.addEventListener('click', () => {
-                    // 更新当前分类
                     currentCategory = category;
-                    // 更新标签状态
                     document.querySelectorAll('.category-tab').forEach(t => {
                         t.classList.remove('active');
                     });
                     tab.classList.add('active');
-                    // 刷新视频列表
                     generateVideoList();
                 });
                 categoryTabs.appendChild(tab);
@@ -347,24 +497,19 @@
 
         // 生成视频列表
         function generateVideoList() {
-            // 清空现有列表
             videoList.innerHTML = '';
 
-            // 过滤视频
             const filteredMovies = currentCategory === '全部' 
-                ? window.movieData 
-                : window.movieData.filter(movie => movie.category === currentCategory);
+                ? movieData 
+                : movieData.filter(movie => movie.category === currentCategory);
 
-            // 创建视频项
             filteredMovies.forEach(movie => {
                 const videoItem = document.createElement('div');
                 videoItem.className = 'video-item';
                 
-                // 创建缩略图区域
                 const thumbnail = document.createElement('div');
                 thumbnail.className = 'video-thumbnail';
                 
-                // 创建视频信息
                 const info = document.createElement('div');
                 info.className = 'video-info';
                 
@@ -376,19 +521,15 @@
                 category.className = 'video-category';
                 category.textContent = movie.category;
                 
-                // 设置分类颜色
                 setCategoryColor(category, movie.category);
                 
-                // 组装元素
                 info.appendChild(title);
                 info.appendChild(category);
                 videoItem.appendChild(thumbnail);
                 videoItem.appendChild(info);
                 
-                // 添加点击事件
                 videoItem.addEventListener('click', () => {
                     playVideo(movie.m3u8);
-                    // 滚动到播放器
                     document.querySelector('.player-container').scrollIntoView({ behavior: 'smooth' });
                 });
                 
@@ -414,21 +555,17 @@
 
         // 播放视频
         function playVideo(url) {
-            // 显示加载指示器
             showLoading();
             hideError();
             
-            // 如果之前有HLS实例，销毁它
             if (hls) {
                 hls.destroy();
                 hls = null;
             }
             
-            // 检查是否支持HLS
             if (Hls.isSupported()) {
                 hls = new Hls();
                 
-                // 监听HLS事件
                 hls.on(Hls.Events.MANIFEST_PARSED, () => {
                     hideLoading();
                     videoPlayer.play().catch(err => {
@@ -443,11 +580,9 @@
                     }
                 });
                 
-                // 加载HLS源
                 hls.loadSource(url);
                 hls.attachMedia(videoPlayer);
             } else if (videoPlayer.canPlayType('application/vnd.apple.mpegurl')) {
-                // Safari原生支持HLS
                 videoPlayer.src = url;
                 videoPlayer.addEventListener('loadedmetadata', () => {
                     hideLoading();
@@ -465,40 +600,117 @@
             }
         }
 
+        // 格式修复功能
+        function fixMoviesFormat() {
+            const input = fixInput.value.trim();
+            if (!input) {
+                fixResult.textContent = '请先粘贴movies.js内容';
+                return;
+            }
+            
+            try {
+                // 尝试多种方式提取和修复数据
+                let fixedData = [];
+                
+                // 方法1: 尝试直接提取JSON
+                if (input.startsWith('[')) {
+                    // 可能是纯JSON数组
+                    fixedData = JSON.parse(input);
+                } else if (input.includes('const movieData')) {
+                    // 尝试提取movieData的值
+                    const match = input.match(/const\s+movieData\s*=\s*([\s\S]+?);/);
+                    if (match && match[1]) {
+                        fixedData = JSON.parse(match[1]);
+                    }
+                } else {
+                    // 尝试作为完整脚本执行
+                    const tempScript = document.createElement('script');
+                    const tempDiv = document.createElement('div');
+                    tempDiv.style.display = 'none';
+                    tempDiv.innerHTML = `<script>window.tempMovieData = null; try { ${input} } catch(e) {} <\/script>`;
+                    document.body.appendChild(tempDiv);
+                    if (window.tempMovieData) {
+                        fixedData = window.tempMovieData;
+                    }
+                    document.body.removeChild(tempDiv);
+                }
+                
+                // 验证修复后的数据
+                if (!Array.isArray(fixedData)) {
+                    throw new Error('无法识别有效的电影数据格式');
+                }
+                
+                // 清理和标准化数据
+                fixedData = fixedData.map(item => ({
+                    name: item.name || '未知电影',
+                    category: item.category || '其他',
+                    m3u8: item.m3u8 || item.url || item.path || ''
+                })).filter(item => item.m3u8);
+                
+                // 生成修复后的代码
+                const fixedCode = `// 电影数据 - 修复后\nconst movieData = ${JSON.stringify(fixedData, null, 2)};`;
+                fixResult.textContent = fixedCode;
+                
+                // 提示用户保存修复后的代码
+                alert('格式已修复！请复制修复后的内容并保存为movies.js');
+                
+                // 使用修复后的数据更新界面
+                movieData = fixedData;
+                window.movieData = fixedData;
+                processMovieData();
+                
+            } catch (error) {
+                fixResult.textContent = '修复失败: ' + error.message + '\n请检查输入格式';
+                console.error('格式修复错误:', error);
+            }
+        }
+
+        // 生成示例movies.js
+        function generateExampleMovies() {
+            const exampleData = [
+                {
+                    "name": "示例电影1",
+                    "category": "动作",
+                    "m3u8": "https://example.com/movie1.m3u8"
+                },
+                {
+                    "name": "示例电影2",
+                    "category": "喜剧",
+                    "m3u8": "https://example.com/movie2.m3u8"
+                },
+                {
+                    "name": "示例电影3",
+                    "category": "科幻",
+                    "m3u8": "https://example.com/movie3.m3u8"
+                }
+            ];
+            
+            const exampleCode = `// 电影数据 - 示例\nconst movieData = ${JSON.stringify(exampleData, null, 2)};`;
+            fixInput.value = exampleCode;
+            fixResult.textContent = exampleCode;
+            alert('已生成示例数据！请修改示例数据并保存为movies.js');
+        }
+
         // 显示加载状态
         function showLoading() {
             loadingIndicator.classList.remove('hidden');
         }
 
-        // 隐藏加载状态
         function hideLoading() {
             loadingIndicator.classList.add('hidden');
         }
 
-        // 显示错误信息
         function showError(message) {
             errorText.textContent = message;
             errorContainer.classList.remove('hidden');
         }
 
-        // 隐藏错误信息
         function hideError() {
             errorContainer.classList.add('hidden');
         }
 
-        // 重试按钮事件
-        retryButton.addEventListener('click', () => {
-            if (window.movieData && window.movieData.length > 0) {
-                playVideo(window.movieData[0].m3u8);
-            }
-        });
-
-        // 初始化
-        document.addEventListener('DOMContentLoaded', loadMovies);
-
-        // 监听手机横竖屏变化，优化播放体验
+        // 监听手机横竖屏变化
         window.addEventListener('orientationchange', () => {
-            // 横竖屏切换时重新调整播放器大小
             videoPlayer.style.width = '100%';
             videoPlayer.style.height = '100%';
         });
